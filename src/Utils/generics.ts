@@ -5,9 +5,10 @@ import { platform, release } from 'os'
 import { Logger } from 'pino'
 import { proto } from '../../WAProto'
 import { version as baileysVersion } from '../Defaults/baileys-version.json'
-import { BaileysEventEmitter, BaileysEventMap, BrowsersMap, DisconnectReason, WACallUpdateType, WAVersion } from '../Types'
+import { BaileysEventEmitter, BaileysEventMap, DisconnectReason, WACallUpdateType, WAVersion, BrowsersMap } from '../Types'
 import { BinaryNode, getAllBinaryNodeChildren, jidDecode } from '../WABinary'
 
+/** Added Extra Browsers or Platforms*/
 const PLATFORM_MAP = {
 	'aix': 'AIX',
 	'darwin': 'Mac OS',
@@ -23,10 +24,10 @@ export const Browsers: BrowsersMap = {
 	macOS: (browser) => ['Mac OS', browser, '14.4.1'],
 	baileys: (browser) => ['Baileys', browser, '6.5.0'],
 	windows: (browser) => ['Windows', browser, '10.0.22631'],
-	/** The appropriate browser based on your OS & release */
 	appropriate: (browser) => [ PLATFORM_MAP[platform()] || 'Ubuntu', browser, release() ]
 }
 
+/** Other Browser Support for Paircode */
 export const getPlatformId = (browser: string) => {
 	const platformType = proto.DeviceProps.PlatformType[browser.toUpperCase()]
 	return platformType ? platformType.toString().charCodeAt(0).toString() : '49' //chrome
@@ -86,7 +87,9 @@ export const encodeWAMessage = (message: proto.IMessage) => (
 		proto.Message.encode(message).finish()
 	)
 )
-
+export const encodeNewsletterMessage = (message: proto.IMessage) => (
+	proto.Message.encode(message).finish()
+)
 export const generateRegistrationId = (): number => {
 	return Uint16Array.from(randomBytes(2))[0] & 16383
 }
@@ -178,10 +181,9 @@ export async function promiseTimeout<T>(ms: number | undefined, promise: (resolv
 	return p as Promise<T>
 }
 
-// inspired from whatsmeow code
-// https://github.com/tulir/whatsmeow/blob/64bc969fbe78d31ae0dd443b8d4c80a5d026d07a/send.go#L42
+//Useless but still keep this to avoid unexpected errors and bugs 
 export const generateMessageIDV2 = (userId?: string): string => {
-	const data = Buffer.alloc(8 + 20 + 16)
+  const data = Buffer.alloc(8 + 20 + 16)
 	data.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 1000)))
 
 	if (userId) {
@@ -190,14 +192,27 @@ export const generateMessageIDV2 = (userId?: string): string => {
 			data.write(id.user, 8)
 			data.write('@c.us', 8 + id.user.length)
 		}
-	}
+  }
 
-	//const random = randomBytes(15)
-	//random.copy(data, 15)
+  const random = randomBytes(16)
+  random.copy(data, 28)
 
-	//const hash = createHash('sha256').update(data).digest()
-	return '3A' + randomBytes(30).toString('hex').toUpperCase()
+  const hash = createHash('sha256').update(data).digest()
+  return '3A' + randomBytes(30).toString('hex').toUpperCase()
 }
+
+
+
+//Message ID function for ShizoWeb 
+//This V3 is RollBack Update to old Message ID
+export const generateMessageIDV3 = (userId?: string): string => {
+   let swebfix = '3A';
+     let swebRandom = randomBytes(30).toString('hex').toUpperCase()
+        return swebfix + swebRandom;
+}
+
+
+
 
 // generate a random ID to attach to a message
 export const generateMessageID = () => '3A' + randomBytes(30).toString('hex').toUpperCase()
@@ -364,8 +379,7 @@ export const getCallStatusFromNode = ({ tag, attrs }: BinaryNode) => {
 		if(attrs.reason === 'timeout') {
 			status = 'timeout'
 		} else {
-			//fired when accepted/rejected/timeout/caller hangs up
-			status = 'terminate'
+			status = 'reject'
 		}
 
 		break
