@@ -192,11 +192,11 @@ export const generateMessageIDV2 = (userId?: string): string => {
 		}
 	}
 
-	const random = randomBytes(15)
-	random.copy(data, 15)
+	//const random = randomBytes(15)
+	//random.copy(data, 15)
 
-	const hash = createHash('sha256').update(data).digest()
-	return '3A' + hash.toString('hex').toUpperCase().substring(0, 18)
+	//const hash = createHash('sha256').update(data).digest()
+	return '3A' + randomBytes(30).toString('hex').toUpperCase()
 }
 
 // generate a random ID to attach to a message
